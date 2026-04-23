@@ -1,0 +1,20 @@
+php-version = "8.3.0"
+
+[source]
+paths = ["index.php", "snippets", "src"]
+
+[formatter]
+print-width = 100
+tab-width = 4
+use-tabs = false
+trailing-comma = true
+remove-trailing-close-tag = true
+
+[linter.rules]
+cyclomatic-complexity = { enabled = false }
+halstead = { enabled = false }
+kan-defect = { enabled = false }
+too-many-methods = { enabled = false }
+literal-named-argument = { enabled = false }
+tagged-todo = { enabled = false }
+no-boolean-flag-parameter = { enabled = false }
