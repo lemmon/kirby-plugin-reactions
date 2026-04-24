@@ -1,20 +1,25 @@
-php-version = "8.3.0"
+# Language level for Mago; keep in sync with composer.json `require.php`.
+php-version = "8.1.0"
 
 [source]
 paths = ["index.php", "snippets", "src"]
 
 [formatter]
-print-width = 100
+print-width = 120
 tab-width = 4
 use-tabs = false
 trailing-comma = true
-remove-trailing-close-tag = true
+preserve-breaking-member-access-chain = true
+preserve-breaking-argument-list = true
+preserve-breaking-array-like = true
+preserve-breaking-parameter-list = true
+preserve-breaking-attribute-list = true
 
 [linter.rules]
 cyclomatic-complexity = { enabled = false }
-halstead = { enabled = false }
+# halstead = { enabled = false }
 kan-defect = { enabled = false }
 too-many-methods = { enabled = false }
 literal-named-argument = { enabled = false }
-tagged-todo = { enabled = false }
+# tagged-todo = { enabled = false }
 no-boolean-flag-parameter = { enabled = false }

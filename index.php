@@ -8,8 +8,8 @@ use Lemmon\Reactions\Reactions;
 
 Kirby::plugin('lemmon/reactions', [
     'options' => [
-        'secret'    => null,
-        'storage'   => [
+        'secret' => null,
+        'storage' => [
             'dir' => null,
         ],
         // Kirby resolves `kirby()->cache('lemmon.reactions')` to this option
@@ -17,9 +17,9 @@ Kirby::plugin('lemmon/reactions', [
         // option key is plain `cache`. The explicit `prefix` skips Kirby's
         // default `{indexUrl-slug}/lemmon/reactions` so HTTP and CLI don't
         // end up with separate cache directories.
-        'cache'     => [
+        'cache' => [
             'active' => true,
-            'type'   => 'file',
+            'type' => 'file',
             'prefix' => 'lemmon/reactions',
         ],
     ],
@@ -29,8 +29,8 @@ Kirby::plugin('lemmon/reactions', [
     'routes' => [
         [
             'pattern' => 'reactions',
-            'method'  => 'POST',
-            'action'  => fn (...$args) => Reactions::handle(...$args),
+            'method' => 'POST',
+            'action' => Reactions::handle(...),
         ],
     ],
 ]);

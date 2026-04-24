@@ -22,21 +22,24 @@ $pageUri = $page->uuid()->toString();
 
 // i18n via Kirby translations; English defaults when no translation exists.
 // Per-call overrides win (passed as snippet parameters).
-$question     ??= t('reactions.question',     Reactions::DEFAULT_QUESTION);
+$question ??= t('reactions.question', Reactions::DEFAULT_QUESTION);
 $confirmation ??= t('reactions.confirmation', Reactions::DEFAULT_CONFIRMATION);
-$status       ??= null;
+$status ??= null;
 
 $reactions = Reactions::reactions();
-$counts    = Reactions::counts($pageUri);
-$active    = Reactions::active($pageUri);
-$action    = url('reactions');
-$token     = Reactions::token($pageUri);
+$counts = Reactions::counts($pageUri);
+$active = Reactions::active($pageUri);
+$action = url('reactions');
+$token = Reactions::token($pageUri);
 
 if ($token === '' || $reactions === []) {
     return;
 }
 ?>
-<form class="reactions" method="POST" action="<?= esc($action, 'attr') ?>" hx-post="<?= esc($action, 'attr') ?>" hx-target="this" hx-swap="outerHTML">
+<form class="reactions" method="POST" action="<?= esc($action, 'attr') ?>" hx-post="<?= esc(
+    $action,
+    'attr',
+) ?>" hx-target="this" hx-swap="outerHTML">
     <input type="hidden" name="page" value="<?= esc($pageUri, 'attr') ?>">
     <input type="hidden" name="token" value="<?= esc($token, 'attr') ?>">
 
@@ -44,11 +47,11 @@ if ($token === '' || $reactions === []) {
 
     <div class="reactions__actions">
         <?php foreach ($reactions as $key => $reaction):
-            $isActive = isset($active[$key]);
-            $count    = (int) ($counts[$key] ?? 0);
-            $classes  = 'reactions__button' . ($isActive ? ' reactions__button--active' : '');
-            $aria     = $reaction['label'] . ', ' . $count . ' ' . ($count === 1 ? 'vote' : 'votes');
-        ?>
+            $isActive = array_key_exists($key, $active);
+            $count = (int) ($counts[$key] ?? 0);
+            $classes = 'reactions__button' . ($isActive ? ' reactions__button--active' : '');
+            $aria = $reaction['label'] . ', ' . $count . ' ' . ($count === 1 ? 'vote' : 'votes');
+            ?>
         <button
             type="submit"
             name="reaction"
@@ -65,6 +68,6 @@ if ($token === '' || $reactions === []) {
     </div>
 
     <?php if (is_string($status) && $status !== ''): ?>
-    <p class="reactions__status" role="status" aria-live="polite"><?= esc($status ?: $confirmation) ?></p>
+    <p class="reactions__status" role="status" aria-live="polite"><?= esc($status) ?></p>
     <?php endif ?>
 </form>

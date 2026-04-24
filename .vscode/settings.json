@@ -1,0 +1,12 @@
+{
+  "editor.formatOnSave": true,
+  "files.exclude": {
+    "**/*-lock.json": true,
+    "**/*.lock": true,
+    "node_modules": true,
+    "vendor": true
+  },
+  "files.insertFinalNewline": false,
+  "files.trimFinalNewlines": false,
+  "files.trimTrailingWhitespace": false
+}

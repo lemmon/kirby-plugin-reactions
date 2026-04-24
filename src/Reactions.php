@@ -18,28 +18,28 @@ use Throwable;
  */
 class Reactions
 {
-    private const CACHE_NAMESPACE     = 'lemmon.reactions';
-    private const STORAGE_FILENAME    = 'events.jsonl';
+    private const CACHE_NAMESPACE = 'lemmon.reactions';
+    private const STORAGE_FILENAME = 'events.jsonl';
     private const SESSION_VISITOR_KEY = 'reactions.visitor';
 
-    private const TOKEN_TTL        = 1800;   // 30 min
-    private const RATE_PER_IP      = 120;
-    private const RATE_WINDOW      = 600;    // 10 min
+    private const TOKEN_TTL = 1800; // 30 min
+    private const RATE_PER_IP = 120;
+    private const RATE_WINDOW = 600; // 10 min
     private const RATE_PER_IP_PAGE = 80;
-    private const RATE_PAGE_WINDOW = 86400;  // 24 h
-    private const COUNTS_CACHE_TTL = 300;    // 5 min
-    private const ACTIVE_CACHE_TTL = 60;     // 1 min
-    private const IPV4_PREFIX      = 24;     // /24
-    private const IPV6_PREFIX      = 64;     // /64
+    private const RATE_PAGE_WINDOW = 86_400; // 24 h
+    private const COUNTS_CACHE_TTL = 300; // 5 min
+    private const ACTIVE_CACHE_TTL = 60; // 1 min
+    private const IPV4_PREFIX = 24; // /24
+    private const IPV6_PREFIX = 64; // /64
 
-    private const ACTION_ON  = 'on';
+    private const ACTION_ON = 'on';
     private const ACTION_OFF = 'off';
 
     // Exposed for snippet defaults / i18n fallback.
-    public const DEFAULT_QUESTION     = 'React to this page';
+    public const DEFAULT_QUESTION = 'React to this page';
     public const DEFAULT_CONFIRMATION = 'Reaction saved.';
-    public const DEFAULT_REACTIONS    = [
-        'up'   => [
+    public const DEFAULT_REACTIONS = [
+        'up' => [
             'emoji' => '👍',
             'label' => 'Thumbs up',
         ],
@@ -61,19 +61,15 @@ class Reactions
      */
     public static function handle(): mixed
     {
-        $request  = \kirby()->request();
-        $data     = $request->data();
-        $pageUri  = self::str($data['page'] ?? '');
-        $token    = self::str($data['token'] ?? '');
+        $request = \kirby()->request();
+        $data = $request->data();
+        $pageUri = self::str($data['page'] ?? '');
+        $token = self::str($data['token'] ?? '');
         $reaction = self::str($data['reaction'] ?? '');
-        $page     = $pageUri !== '' ? \page($pageUri) : null;
-        $isHtmx   = strtolower((string) $request->header('HX-Request')) === 'true';
+        $page = $pageUri !== '' ? \page($pageUri) : null;
+        $isHtmx = strtolower((string) $request->header('HX-Request')) === 'true';
 
-        if (
-            !$page
-            || !self::isKnownReaction($reaction)
-            || !self::validateToken($token, $pageUri)
-        ) {
+        if (!$page || !self::isKnownReaction($reaction) || !self::validateToken($token, $pageUri)) {
             return self::respond($isHtmx, $page);
         }
 
@@ -89,7 +85,7 @@ class Reactions
             return self::respond($isHtmx, $page);
         }
 
-        $action = isset(self::activeForVisitor($pageUri, $visitorHash)[$reaction])
+        $action = array_key_exists($reaction, self::activeForVisitor($pageUri, $visitorHash))
             ? self::ACTION_OFF
             : self::ACTION_ON;
 
@@ -118,14 +114,20 @@ class Reactions
                 continue;
             }
 
+            if (!is_string($entry) && !is_array($entry)) {
+                continue;
+            }
+
+            $label = self::labelFromKey($key);
+            $emoji = '';
+
             if (is_string($entry)) {
                 $emoji = trim($entry);
-                $label = self::labelFromKey($key);
-            } elseif (is_array($entry)) {
+            }
+
+            if (is_array($entry)) {
                 $emoji = self::str($entry['emoji'] ?? '');
-                $label = self::str($entry['label'] ?? self::labelFromKey($key));
-            } else {
-                continue;
+                $label = self::str($entry['label'] ?? $label);
             }
 
             if ($emoji === '') {
@@ -158,8 +160,8 @@ class Reactions
         }
 
         $cache = self::cache();
-        $key   = self::countsKey($pageUri);
-        $hit   = $cache->get($key);
+        $key = self::countsKey($pageUri);
+        $hit = $cache->get($key);
 
         if (is_array($hit)) {
             return self::normalizeCounts($hit);
@@ -201,9 +203,9 @@ class Reactions
     public static function token(string $pageUri): string
     {
         $payload = json_encode([
-            'page'     => $pageUri,
+            'page' => $pageUri,
             'issuedAt' => time(),
-            'nonce'    => bin2hex(random_bytes(16)),
+            'nonce' => bin2hex(random_bytes(16)),
         ]);
 
         if ($payload === false) {
@@ -216,8 +218,9 @@ class Reactions
     }
 
     public static function validateToken(
-        #[\SensitiveParameter] string $token,
-        string $pageUri
+        #[\SensitiveParameter]
+        string $token,
+        string $pageUri,
     ): bool {
         if ($token === '' || $pageUri === '' || substr_count($token, '.') !== 1) {
             return false;
@@ -250,7 +253,7 @@ class Reactions
 
     private static function isKnownReaction(string $reaction): bool
     {
-        return isset(self::reactions()[$reaction]);
+        return array_key_exists($reaction, self::reactions());
     }
 
     private static function labelFromKey(string $key): string
@@ -262,9 +265,7 @@ class Reactions
     {
         $confirmation = \t('reactions.confirmation', self::DEFAULT_CONFIRMATION);
 
-        return is_string($confirmation) && $confirmation !== ''
-            ? $confirmation
-            : self::DEFAULT_CONFIRMATION;
+        return is_string($confirmation) && $confirmation !== '' ? $confirmation : self::DEFAULT_CONFIRMATION;
     }
 
     /** @return array<string, int> */
@@ -282,9 +283,11 @@ class Reactions
         $normalized = self::emptyCounts();
 
         foreach ($normalized as $reaction => $count) {
-            if (isset($counts[$reaction])) {
-                $normalized[$reaction] = max(0, (int) $counts[$reaction]);
+            if (!array_key_exists($reaction, $counts)) {
+                continue;
             }
+
+            $normalized[$reaction] = max(0, (int) $counts[$reaction]);
         }
 
         return $normalized;
@@ -302,7 +305,7 @@ class Reactions
         foreach ($active as $key => $value) {
             $reaction = is_string($key) ? $key : self::str($value);
 
-            if (isset($known[$reaction])) {
+            if (array_key_exists($reaction, $known)) {
                 $normalized[$reaction] = true;
             }
         }
@@ -330,9 +333,7 @@ class Reactions
     {
         $visitorId = self::visitorId($create);
 
-        return $visitorId !== ''
-            ? hash_hmac('sha256', $pageUri . '|' . $visitorId, self::secret())
-            : '';
+        return $visitorId !== '' ? hash_hmac('sha256', $pageUri . '|' . $visitorId, self::secret()) : '';
     }
 
     private static function visitorId(bool $create): string
@@ -400,6 +401,20 @@ class Reactions
         return self::storageDir() . '/' . self::STORAGE_FILENAME;
     }
 
+    /** @return resource|false */
+    private static function openReadHandle(string $file)
+    {
+        set_error_handler(
+            static fn(int $severity, string $message, string $filePath, int $line): bool => true,
+        );
+
+        try {
+            return fopen($file, 'r');
+        } finally {
+            restore_error_handler();
+        }
+    }
+
     /** @return array<string, int> */
     private static function readCounts(string $pageUri): array
     {
@@ -409,7 +424,7 @@ class Reactions
             return self::emptyCounts();
         }
 
-        $handle = @fopen($file, 'r');
+        $handle = self::openReadHandle($file);
 
         if ($handle === false) {
             return self::emptyCounts();
@@ -429,7 +444,7 @@ class Reactions
             $reaction = self::str($entry['reaction'] ?? '');
             $action = self::action($entry['action'] ?? null);
 
-            if ($visitorHash === '' || !isset($known[$reaction]) || $action === null) {
+            if ($visitorHash === '' || !array_key_exists($reaction, $known) || $action === null) {
                 continue;
             }
 
@@ -442,9 +457,11 @@ class Reactions
 
         foreach ($states as $visitor) {
             foreach ($visitor as $reaction => $action) {
-                if ($action === self::ACTION_ON) {
-                    $counts[$reaction]++;
+                if ($action !== self::ACTION_ON) {
+                    continue;
                 }
+
+                $counts[$reaction]++;
             }
         }
 
@@ -481,7 +498,7 @@ class Reactions
             return [];
         }
 
-        $handle = @fopen($file, 'r');
+        $handle = self::openReadHandle($file);
 
         if ($handle === false) {
             return [];
@@ -504,15 +521,16 @@ class Reactions
             $reaction = self::str($entry['reaction'] ?? '');
             $action = self::action($entry['action'] ?? null);
 
-            if (!isset($known[$reaction]) || $action === null) {
+            if (!array_key_exists($reaction, $known) || $action === null) {
                 continue;
             }
 
-            if ($action === self::ACTION_ON) {
-                $active[$reaction] = true;
-            } else {
+            if ($action !== self::ACTION_ON) {
                 unset($active[$reaction]);
+                continue;
             }
+
+            $active[$reaction] = true;
         }
 
         fclose($handle);
@@ -524,13 +542,13 @@ class Reactions
         string $pageUri,
         string $reaction,
         string $action,
-        string $visitorHash
+        string $visitorHash,
     ): void {
         $entry = [
-            'page'        => $pageUri,
-            'reaction'    => $reaction,
-            'action'      => $action,
-            'timestamp'   => time(),
+            'page' => $pageUri,
+            'reaction' => $reaction,
+            'action' => $action,
+            'timestamp' => time(),
             'visitorHash' => $visitorHash,
         ];
 
@@ -544,8 +562,10 @@ class Reactions
             F::append(self::storageFile(), $payload . PHP_EOL);
             self::cache()->remove(self::countsKey($pageUri));
             self::cache()->remove(self::activeKey($pageUri, $visitorHash));
-        } catch (Throwable) {
-            // Rate-limit still protects us; silent drop is fine.
+        } catch (Throwable $exception) {
+            error_log(
+                'lemmon.reactions: failed to persist reaction event (' . get_debug_type($exception) . ')',
+            );
         }
     }
 
@@ -578,8 +598,8 @@ class Reactions
 
     private static function allowBucket(string $key, int $limit, int $windowSeconds): bool
     {
-        $cache  = self::cache();
-        $now    = time();
+        $cache = self::cache();
+        $now = time();
         $bucket = $cache->get($key);
 
         if (!is_array($bucket) || ($bucket['reset'] ?? 0) <= $now) {
@@ -622,10 +642,18 @@ class Reactions
     private static function respond(bool $isHtmx, ?Page $page, ?string $status = null): mixed
     {
         if ($isHtmx) {
-            return $page ? (string) \snippet('reactions', [
-                'page'   => $page,
-                'status' => $status,
-            ], true) : '';
+            return (
+                $page
+                    ? (string) \snippet(
+                        'reactions',
+                        [
+                            'page' => $page,
+                            'status' => $status,
+                        ],
+                        true,
+                    )
+                    : ''
+            );
         }
 
         return \go($page ? $page->url() : \site()->url());
@@ -685,7 +713,9 @@ class Reactions
 
         $bytes = (int) (self::IPV6_PREFIX / 8);
 
-        return inet_ntop(substr($packed, 0, $bytes) . str_repeat("\0", 16 - $bytes)) ?: null;
+        $normalized = inet_ntop(substr($packed, 0, $bytes) . str_repeat("\0", 16 - $bytes));
+
+        return $normalized !== false ? $normalized : null;
     }
 
     // --- Utilities -------------------------------------------------------
