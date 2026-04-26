@@ -12,7 +12,7 @@ use Throwable;
 /**
  * Emoji reactions widget -- configurable reactions, append-only events, privacy-first storage.
  *
- * Public API: handle(), token(), validateToken(), reactions(), active(), counts().
+ * Public API: handle(), token(), validateToken(), pool(), active(), counts().
  * Page identity is the Kirby page UUID string from `$page->uuid()->toString()` (e.g. `page://...`),
  * not the content path / id.
  */
@@ -38,7 +38,7 @@ class Reactions
     // Exposed for snippet defaults / i18n fallback.
     public const DEFAULT_QUESTION = 'React to this page';
     public const DEFAULT_CONFIRMATION = 'Reaction saved.';
-    public const DEFAULT_REACTIONS = [
+    public const DEFAULT_POOL = [
         'up' => [
             'emoji' => '👍',
             'label' => 'Thumbs up',
@@ -95,16 +95,16 @@ class Reactions
     }
 
     /**
-     * Configured reactions, keyed by stable reaction id.
+     * The configured reaction pool, keyed by stable reaction id.
      *
      * @return array<string, array{emoji: string, label: string}>
      */
-    public static function reactions(): array
+    public static function pool(): array
     {
-        $configured = \option('lemmon.reactions.reactions', self::DEFAULT_REACTIONS);
+        $configured = \option('lemmon.reactions.pool', self::DEFAULT_POOL);
 
         if (!is_array($configured)) {
-            return self::DEFAULT_REACTIONS;
+            return self::DEFAULT_POOL;
         }
 
         $reactions = [];
@@ -140,7 +140,7 @@ class Reactions
             ];
         }
 
-        return $reactions !== [] ? $reactions : self::DEFAULT_REACTIONS;
+        return $reactions !== [] ? $reactions : self::DEFAULT_POOL;
     }
 
     /**
@@ -253,7 +253,7 @@ class Reactions
 
     private static function isKnownReaction(string $reaction): bool
     {
-        return array_key_exists($reaction, self::reactions());
+        return array_key_exists($reaction, self::pool());
     }
 
     private static function labelFromKey(string $key): string
@@ -271,7 +271,7 @@ class Reactions
     /** @return array<string, int> */
     private static function emptyCounts(): array
     {
-        return array_fill_keys(array_keys(self::reactions()), 0);
+        return array_fill_keys(array_keys(self::pool()), 0);
     }
 
     /**
@@ -299,7 +299,7 @@ class Reactions
      */
     private static function normalizeActive(array $active): array
     {
-        $known = self::reactions();
+        $known = self::pool();
         $normalized = [];
 
         foreach ($active as $key => $value) {
@@ -430,7 +430,7 @@ class Reactions
             return self::emptyCounts();
         }
 
-        $known = self::reactions();
+        $known = self::pool();
         $states = [];
 
         while (($line = fgets($handle)) !== false) {
@@ -504,7 +504,7 @@ class Reactions
             return [];
         }
 
-        $known = self::reactions();
+        $known = self::pool();
         $active = [];
 
         while (($line = fgets($handle)) !== false) {

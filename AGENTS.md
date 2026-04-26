@@ -3,7 +3,7 @@
 ## Purpose & Scope
 
 - Configurable emoji reactions widget. Plain HTML POST; no JS required. HTMX-progressive if HTMX is on the page.
-- One global reaction pool for now, configured via `lemmon.reactions.reactions`.
+- One global reaction pool for now, configured via `lemmon.reactions.pool`.
 - Visitors can cast multiple reactions per page and click an active reaction again to uncast it.
 - Never write to page content files. The JSONL event log under `storage/` is the sole source of truth.
 

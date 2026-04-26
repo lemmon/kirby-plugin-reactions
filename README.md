@@ -18,7 +18,7 @@ git submodule add git@github.com:lemmon/kirby-plugin-reactions.git site/plugins/
 <?php snippet('reactions') ?>
 ```
 
-Override copy per call when needed:
+Override the prompt per call:
 
 ```php
 <?php snippet('reactions', [
@@ -26,7 +26,7 @@ Override copy per call when needed:
 ]) ?>
 ```
 
-Labels read from `t('reactions.*')` with English fallbacks. Add translation keys for i18n instead of per-call overrides:
+Labels read from `t('reactions.*')` with English fallbacks:
 
 ```yaml
 reactions.question: React to this page
@@ -35,28 +35,30 @@ reactions.confirmation: Reaction saved.
 
 BEM-like classes for styling: `reactions`, `reactions__question`, `reactions__actions`, `reactions__button`, `reactions__button--active`, `reactions__emoji`, `reactions__label`, `reactions__count`, `reactions__status`. No CSS ships with the plugin.
 
-## Configure Reactions
+## Reaction pool
 
 The plugin has one global reaction pool:
 
 ```php
 return [
-    'lemmon.reactions.reactions' => [
-        'up' => [
-            'emoji' => '👍',
-            'label' => 'Thumbs up',
-        ],
-        'down' => [
-            'emoji' => '👎',
-            'label' => 'Thumbs down',
-        ],
-        'heart' => [
-            'emoji' => '❤️',
-            'label' => 'Love it',
-        ],
-        'mindblown' => [
-            'emoji' => '🤯',
-            'label' => 'Mind blown',
+    'lemmon.reactions' => [
+        'pool' => [
+            'up' => [
+                'emoji' => '👍',
+                'label' => 'Thumbs up',
+            ],
+            'down' => [
+                'emoji' => '👎',
+                'label' => 'Thumbs down',
+            ],
+            'heart' => [
+                'emoji' => '❤️',
+                'label' => 'Love it',
+            ],
+            'mindblown' => [
+                'emoji' => '🤯',
+                'label' => 'Mind blown',
+            ],
         ],
     ],
 ];
@@ -67,9 +69,11 @@ Keys are stable ids and must match `[a-z0-9][a-z0-9_-]{0,63}`. Store and compare
 For very small configs, a string value is accepted as shorthand:
 
 ```php
-'lemmon.reactions.reactions' => [
-    'up' => '👍',
-    'down' => '👎',
+'lemmon.reactions' => [
+    'pool' => [
+        'up' => '👍',
+        'down' => '👎',
+    ],
 ],
 ```
 
@@ -87,20 +91,9 @@ Every valid click is appended to `{storage-root}/reactions/events.jsonl` as one 
 }
 ```
 
-Clicking an active reaction appends an `off` event. Counts are derived by replaying the log and keeping the final `on` / `off` state for each page-scoped anonymous visitor + reaction pair:
+Clicking an active reaction appends an `off` event. Counts replay the log and keep the final `on` / `off` state for each visitor + reaction pair.
 
-```php
-use Lemmon\Reactions\Reactions;
-
-$totals = Reactions::counts($page->uuid()->toString());
-// => ['up' => 42, 'down' => 3]
-```
-
-This keeps storage append-only and auditable. The tradeoff is that rapid toggling writes more lines, but rate limits cap growth and counts do not inflate. Add log compaction later if a site receives enough interaction volume to justify it.
-
-Votes are keyed by the full page UUID string (`page://...` from `$page->uuid()->toString()`), not the filesystem path, so data survives renames. UUIDs are enabled in Kirby by default; if you have turned them off globally, this plugin is not a fit.
-
-Counts are cached for 5 minutes; the entry for a page is invalidated after each successful event. A visitor's active reaction state is cached for 1 minute and invalidated after their own event.
+Votes key on `$page->uuid()->toString()`, so data survives renames. Requires UUIDs (Kirby's default).
 
 The log path resolves in this order:
 
@@ -110,7 +103,7 @@ The log path resolves in this order:
 
 ### Register a shared `storage` root (recommended)
 
-The `storage/` directory is intended as a universal, Git-ignored area for runtime-only plugin data. Register it once in `public/index.php`:
+Register a Git-ignored `storage` root once in `public/index.php`:
 
 ```php
 $kirby = new Kirby([
@@ -124,7 +117,19 @@ $kirby = new Kirby([
 ]);
 ```
 
-Then add `/storage` to `.gitignore`.
+## Programmatic API
+
+Three static helpers on `Lemmon\Reactions\Reactions`, all expecting `$page->uuid()->toString()`:
+
+```php
+use Lemmon\Reactions\Reactions;
+
+$pageUri = $page->uuid()->toString();
+
+Reactions::counts($pageUri); // ['up' => 42, 'down' => 3]
+Reactions::active($pageUri); // ['up' => true]
+Reactions::pool();           // ['up' => ['emoji' => '...', 'label' => '...'], ...]
+```
 
 ## HTMX (optional)
 
@@ -134,29 +139,33 @@ The form always renders with `hx-post`, `hx-target="this"`, and `hx-swap="outerH
 
 ```php
 return [
-    'lemmon.reactions.secret'      => null, // HMAC secret; falls back to Kirby's content token
-    'lemmon.reactions.storage.dir' => null, // absolute path override
-    'lemmon.reactions.reactions'   => [
-        'up' => [
-            'emoji' => '👍',
-            'label' => 'Thumbs up',
+    'lemmon.reactions' => [
+        'secret' => null, // HMAC secret; falls back to Kirby's content token
+        'storage' => [
+            'dir' => null, // absolute path override
         ],
-        'down' => [
-            'emoji' => '👎',
-            'label' => 'Thumbs down',
+        'pool' => [
+            'up' => [
+                'emoji' => '👍',
+                'label' => 'Thumbs up',
+            ],
+            'down' => [
+                'emoji' => '👎',
+                'label' => 'Thumbs down',
+            ],
         ],
-    ],
-    'lemmon.reactions.cache'       => [
-        'active' => true,
-        'type'   => 'file',
-        'prefix' => 'lemmon/reactions',
+        'cache' => [
+            'active' => true,
+            'type' => 'file',
+            'prefix' => 'lemmon/reactions',
+        ],
     ],
 ];
 ```
 
-The `cache` option is the plugin-cache config key Kirby resolves for `kirby()->cache('lemmon.reactions')` (see `AppCaches::cacheOptionsKey`). The explicit `prefix` bypasses Kirby's default `{indexUrl-slug}/lemmon/reactions` path, so caches stay in one place across CLI and HTTP invocations. Redis/memcached users only need to change `type` + driver options.
+`cache` is a standard Kirby cache config; switch `type` for Redis/memcached. The explicit `prefix` keeps HTTP and CLI invocations sharing one cache directory.
 
-To turn the widget off: remove `snippet('reactions')` from your templates, or disable the whole plugin in `site/config` with `'lemmon/reactions' => false` (Kirby does not load the plugin, so the route and snippet are both gone).
+To hide the widget, remove `snippet('reactions')` from your templates.
 
 ### Baked-in defaults
 
@@ -176,18 +185,17 @@ To turn the widget off: remove `snippet('reactions')` from your templates, or di
 
 ## Security
 
-Set a strong secret in production:
+Set a strong secret in production. Generate one with `openssl rand -hex 32` (or `php -r 'echo bin2hex(random_bytes(32)), PHP_EOL;'`) and paste the resulting hex string as a literal value, or load it from env:
 
 ```php
-'lemmon.reactions.secret' => bin2hex(random_bytes(32)),
-// or: openssl rand -hex 32
+'lemmon.reactions' => [
+    'secret' => $_ENV['REACTIONS_SECRET'] ?? null,
+],
 ```
 
-If the secret leaks, attackers can forge tokens and bypass rate limiting. Load it from env / secret manager; never commit it.
+Do not embed `bin2hex(random_bytes(32))` directly in the config -- it would re-run per request and rotate the secret every time. Rotating the secret invalidates outstanding tokens and changes the HMAC for every visitor going forward.
 
-Persistent vote events store a page-scoped HMAC of a random session visitor id. This keeps reaction state separate per page and avoids linking a visitor's reactions across pages from the JSONL log alone.
-
-IP addresses are only used for ephemeral rate-limit cache buckets. They are anonymized to /24 for IPv4 and /64 for IPv6 before being HMAC-hashed. Raw IPs, persistent IP hashes, and user agents are not stored in the event log.
+Vote events store a page-scoped HMAC of a random session visitor id, keeping reaction state separate per page. IPs are anonymized to /24 (IPv4) or /64 (IPv6), then HMAC-hashed for ephemeral rate-limit buckets only -- never persisted.
 
 ## License
 

@@ -26,7 +26,7 @@ $question ??= t('reactions.question', Reactions::DEFAULT_QUESTION);
 $confirmation ??= t('reactions.confirmation', Reactions::DEFAULT_CONFIRMATION);
 $status ??= null;
 
-$reactions = Reactions::reactions();
+$reactions = Reactions::pool();
 $counts = Reactions::counts($pageUri);
 $active = Reactions::active($pageUri);
 $action = url('reactions');
