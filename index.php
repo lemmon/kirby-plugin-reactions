@@ -30,7 +30,9 @@ Kirby::plugin('lemmon/reactions', [
         [
             'pattern' => 'reactions',
             'method' => 'POST',
-            'action' => Reactions::handle(...),
+            // Not `Reactions::handle(...)`: Kirby invokes route actions with Closure::call($route); static callables cannot be bound (PHP 9).
+            // @mago-expect lint:prefer-first-class-callable
+            'action' => fn(): mixed => Reactions::handle(),
         ],
     ],
 ]);
